@@ -117,11 +117,6 @@ There are several options for tuning the behavior and safety checks of the execu
 Example Controller Manager
 --------------------------
 
-<<<<<<< HEAD
-MoveIt controller managers, somewhat a misnomer, are the interfaces to your custom low level controllers. A better way to think of them are *controler interfaces*. For most use cases, the included :moveit_codedir:`MoveItSimpleControllerManager <moveit_plugins/moveit_simple_controller_manager>` is sufficient if your robot controllers already provide ROS actions for FollowJointTrajectory. If you use *ros_control*, the included :moveit_codedir:`MoveItRosControlInterface <moveit_plugins/moveit_ros_control_interface>` is also ideal.
-
-However, for some applications you might desire a more custom controller manager. An example template for starting your custom controller manager is provided :codedir:`here <controller_configuration/src/moveit_controller_manager_example.cpp>`.
-
 An example is provided in plugin tutorial at `Creating MoveIt Plugins <../creating_moveit_plugins/plugin_tutorial.html>`_.
 
 Fake Controller Manager
