@@ -117,7 +117,7 @@ There are several options for tuning the behavior and safety checks of the execu
 Example Controller Manager
 --------------------------
 
-An example is provided in plugin tutorial at `Creating MoveIt Plugins <../creating_moveit_plugins/plugin_tutorial.html>`_.
+See the example provided in the `Creating MoveIt Plugins <../creating_moveit_plugins/plugin_tutorial.html>`_ tutorial.
 
 Fake Controller Manager
 -----------------------
