@@ -2,7 +2,7 @@
 
   <!-- Run Rviz -->
   <include file="$(find panda_moveit_config)/launch/demo.launch">
-    <arg name="planner" value="lerp"/>
+    <arg name="pipeline" value="lerp"/>
   </include>
 
   <!-- GDB Debug Arguments -->
