@@ -45,9 +45,11 @@
 
 #include <moveit_visual_tools/moveit_visual_tools.h>
 
+#include "my_tutorial/misc.h"
+
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "move_group_interface_tutorial");
+  ros::init(argc, argv, "my_move_group_interface_tutorial");
   ros::NodeHandle node_handle;
   ros::AsyncSpinner spinner(1);
   spinner.start();
@@ -74,6 +76,20 @@ int main(int argc, char** argv)
   const robot_state::JointModelGroup* joint_model_group =
       move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
 
+
+  const std::string ROBOT_DESCRIPTION = "robot_description";
+  robot_model_loader::RobotModelLoaderPtr robot_model_loader(
+      new robot_model_loader::RobotModelLoader(ROBOT_DESCRIPTION));
+
+  // Create a planing scene monitor
+  planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor(
+      new planning_scene_monitor::PlanningSceneMonitor(robot_model_loader));
+
+  planning_scene_monitor->startSceneMonitor();
+  planning_scene_monitor->startWorldGeometryMonitor();
+  planning_scene_monitor->startStateMonitor();
+
+
   // Visualization
   // ^^^^^^^^^^^^^
   //
@@ -94,6 +110,13 @@ int main(int argc, char** argv)
 
   // Batch publishing is used to reduce the number of messages being sent to RViz for large visualizations
   visual_tools.trigger();
+  // TODO: before visual_tools.trigger(), selfCollision returns the robot is in collision, why???
+
+  // Check Self Collision
+  // ^^^^^^^^^^^^^^^^^^^^
+  planning_scene_monitor->updateSceneWithCurrentState();
+  planning_scene_monitor::LockedPlanningSceneRO(planning_scene_monitor)->printKnownObjects(std::cout);
+  misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::SELF);
 
   // Getting Basic Information
   // ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -113,6 +136,7 @@ int main(int argc, char** argv)
   // ^^^^^^^^^^^^^^^^^^^^^^^^^
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
 
+
   // Planning to a Pose goal
   // ^^^^^^^^^^^^^^^^^^^^^^^
   // We can plan a motion for this group to a desired pose for the
@@ -124,14 +148,21 @@ int main(int argc, char** argv)
   target_pose1.position.z = 0.5;
   move_group.setPoseTarget(target_pose1);
 
+  // misc::getSelfCollisionInformation(planning_scene);
+  // misc::getFullCollisionInformation(planning_scene);
+
+
   // Now, we call the planner to compute the plan and visualize it.
   // Note that we are just planning, not asking move_group
-  // to actually move the robot.
+  // to actually move the robot. However it shows the robot moving along the path
+  // but not stays there at the goal. It only shows the planned motion and goes back
+  // to its original place.
   moveit::planning_interface::MoveGroupInterface::Plan my_plan;
 
   bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
 
   ROS_INFO_NAMED("tutorial", "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
+
 
   // Visualizing plans
   // ^^^^^^^^^^^^^^^^^
@@ -155,7 +186,7 @@ int main(int argc, char** argv)
   // and report success on execution of a trajectory.
 
   /* Uncomment below line when working with a real robot */
-  /* move_group.move(); */
+  //  move_group.move(); 
 
   // Planning to a joint-space goal
   // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -291,34 +322,50 @@ int main(int argc, char** argv)
   // Adding/Removing Objects and Attaching/Detaching Objects
   // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   //
-  // Define a collision object ROS message.
-  moveit_msgs::CollisionObject collision_object;
-  collision_object.header.frame_id = move_group.getPlanningFrame();
-  
-  // The id of the object is used to identify it.
-  collision_object.id = "box1";
-
-  // Define a box to add to the world.
-  shape_msgs::SolidPrimitive primitive;
-  primitive.type = primitive.BOX;
-  primitive.dimensions.resize(3);
-  primitive.dimensions[0] = 0.4;
-  primitive.dimensions[1] = 0.1;
-  primitive.dimensions[2] = 0.4;
-
-  // Define a pose for the box (specified relative to frame_id)
-  geometry_msgs::Pose box_pose;
-  box_pose.orientation.w = 1.0;
-  box_pose.position.x = 0.4;
-  box_pose.position.y = -0.2;
-  box_pose.position.z = 1.0;
-
-  collision_object.primitives.push_back(primitive);
-  collision_object.primitive_poses.push_back(box_pose);
-  collision_object.operation = collision_object.ADD;
+  // Define collision object1, is NOT in collision
+  moveit_msgs::CollisionObject collision_object1;
+  collision_object1.header.frame_id = move_group.getPlanningFrame();
+  collision_object1.id = "box1";
+  shape_msgs::SolidPrimitive primitive1;
+  primitive1.type = primitive1.BOX;
+  primitive1.dimensions.resize(3);
+  primitive1.dimensions[0] = 0.4;
+  primitive1.dimensions[1] = 0.1;
+  primitive1.dimensions[2] = 0.4;
+  geometry_msgs::Pose box1_pose;
+  box1_pose.orientation.w = 1.0;
+  box1_pose.position.x = 0.4;
+  box1_pose.position.y = -0.2;
+  box1_pose.position.z = 1.0;
+  collision_object1.primitives.push_back(primitive1);
+  collision_object1.primitive_poses.push_back(box1_pose);
+  collision_object1.operation = collision_object1.ADD;
 
   std::vector<moveit_msgs::CollisionObject> collision_objects;
-  collision_objects.push_back(collision_object);
+  collision_objects.push_back(collision_object1);
+
+  // Define collision object2, is in collision
+  moveit_msgs::CollisionObject collision_object2;
+  collision_object2.header.frame_id = move_group.getPlanningFrame();
+  collision_object2.id = "box2";
+  shape_msgs::SolidPrimitive primitive2;
+  primitive2.type = primitive2.BOX;
+  primitive2.dimensions.resize(3);
+  primitive2.dimensions[0] = 0.4;
+  primitive2.dimensions[1] = 0.1;
+  primitive2.dimensions[2] = 0.4;
+  geometry_msgs::Pose box2_pose;
+  box2_pose.orientation.w = 1.0;
+  box2_pose.position.x = 0;
+  box2_pose.position.y = 0;
+  box2_pose.position.z = 0.5;
+  collision_object2.primitives.push_back(primitive2);
+  collision_object2.primitive_poses.push_back(box2_pose);
+  collision_object2.operation = collision_object2.ADD;
+
+  collision_objects.push_back(collision_object2);
+  planning_scene_monitor::LockedPlanningSceneRO(planning_scene_monitor)->printKnownObjects(std::cout);
+
 
   // Now, let's add the collision object into the world
   ROS_INFO_NAMED("tutorial", "Add an object into the world");
@@ -328,8 +375,32 @@ int main(int argc, char** argv)
   visual_tools.publishText(text_pose, "Add object", rvt::WHITE, rvt::XLARGE);
   visual_tools.trigger();
 
+  // ><><><><><> check collision <><><><><><
+  planning_scene_monitor->updateSceneWithCurrentState();
+  misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::SELF);
+  misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::FULL);
+
   // Wait for MoveGroup to recieve and process the collision object message
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object appears in RViz");
+
+  // remove collsion object2 which was in collision
+  std::vector<std::string> remove_objects_ids = {"box2"};
+  planning_scene_interface.removeCollisionObjects(remove_objects_ids);
+  planning_scene_monitor::LockedPlanningSceneRO(planning_scene_monitor)->printKnownObjects(std::cout);
+
+  // Show text in RViz of status
+  visual_tools.publishText(text_pose, "remove object", rvt::WHITE, rvt::XLARGE);
+  visual_tools.trigger();
+
+  // ><><><><><> check collision <><><><><><
+  planning_scene_monitor->updateSceneWithCurrentState();
+  misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::SELF);
+  misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::FULL);
+
+  // Wait for MoveGroup to recieve and process the collision object message
+  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object appears in RViz");
+
+
 
   // Now when we plan a trajectory it will avoid the obstacle
   move_group.setStartState(*move_group.getCurrentState());
@@ -352,7 +423,7 @@ int main(int argc, char** argv)
 
   // Now, let's attach the collision object to the robot.
   ROS_INFO_NAMED("tutorial", "Attach the object to the robot");
-  move_group.attachObject(collision_object.id);
+  move_group.attachObject(collision_object1.id);
 
   // Show text in RViz of status
   visual_tools.publishText(text_pose, "Object attached to robot", rvt::WHITE, rvt::XLARGE);
@@ -362,9 +433,12 @@ int main(int argc, char** argv)
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object attaches to the "
                       "robot");
 
+  // lets move the robot to the goal and see if the object moves with it
+  // move_group.move();
+
   // Now, let's detach the collision object from the robot.
   ROS_INFO_NAMED("tutorial", "Detach the object from the robot");
-  move_group.detachObject(collision_object.id);
+  move_group.detachObject(collision_object1.id);
 
   // Show text in RViz of status
   visual_tools.publishText(text_pose, "Object dettached from robot", rvt::WHITE, rvt::XLARGE);
@@ -374,17 +448,17 @@ int main(int argc, char** argv)
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object detaches to the "
                       "robot");
 
-  // Now, let's remove the collision object from the world.
+  // // Now, let's remove the collision object from the world.
   ROS_INFO_NAMED("tutorial", "Remove the object from the world");
   std::vector<std::string> object_ids;
-  object_ids.push_back(collision_object.id);
+  object_ids.push_back(collision_object1.id);
   planning_scene_interface.removeCollisionObjects(object_ids);
 
-  // Show text in RViz of status
+  // // Show text in RViz of status
   visual_tools.publishText(text_pose, "Object removed", rvt::WHITE, rvt::XLARGE);
   visual_tools.trigger();
 
-  /* Wait for MoveGroup to recieve and process the attached collision object message */
+  // /* Wait for MoveGroup to recieve and process the attached collision object message */
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object disapears");
 
   // END_TUTORIAL
