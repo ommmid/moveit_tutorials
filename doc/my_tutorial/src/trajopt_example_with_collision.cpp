@@ -2,6 +2,7 @@
 #include <ros/console.h>
 #include <moveit/planning_interface/planning_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/move_group_interface/move_group_interface.h>
 
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_scene/planning_scene.h>
@@ -198,41 +199,42 @@ int main(int argc, char** argv)
   /* We can also use visual_tools to wait for user input */
   visual_tools.prompt("Press 'next' to add object to the scene");
 
-
   // =================================================================
-  // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+  // moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+  moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
-  // moveit_msgs::CollisionObject collision_object1;
-  // collision_object1.header.frame_id = "world";
-  // collision_object1.id = "box1";
-  // shape_msgs::SolidPrimitive primitive1;
-  // primitive1.type = primitive1.BOX;
-  // primitive1.dimensions.resize(3);
-  // primitive1.dimensions[0] = 0.4;
-  // primitive1.dimensions[1] = 0.1;
-  // primitive1.dimensions[2] = 0.4;
-  // geometry_msgs::Pose box1_pose;
-  // box1_pose.orientation.w = 1.0;
-  // box1_pose.position.x = 0.4;
-  // box1_pose.position.y = -0.2;
-  // box1_pose.position.z = 1.0;
-  // collision_object1.primitives.push_back(primitive1);
-  // collision_object1.primitive_poses.push_back(box1_pose);
-  // collision_object1.operation = collision_object1.ADD;
+  moveit_msgs::CollisionObject collision_object1;
+  // ROS_INFO_STREAM("-------------- " << move_group.getPlanningFrame().c_str());
+  collision_object1.header.frame_id = "world"; // move_group.getPlanningFrame();
+  collision_object1.id = "box1";
+  shape_msgs::SolidPrimitive primitive1;
+  primitive1.type = primitive1.BOX;
+  primitive1.dimensions.resize(3);
+  primitive1.dimensions[0] = 0.4;
+  primitive1.dimensions[1] = 0.1;
+  primitive1.dimensions[2] = 0.4;
+  geometry_msgs::Pose box1_pose;
+  box1_pose.orientation.w = 1.0;
+  box1_pose.position.x = 0.4;
+  box1_pose.position.y = -0.2;
+  box1_pose.position.z = 1.0;
+  collision_object1.primitives.push_back(primitive1);
+  collision_object1.primitive_poses.push_back(box1_pose);
+  collision_object1.operation = collision_object1.ADD;
 
-  // std::vector<moveit_msgs::CollisionObject> collision_objects;
-  // collision_objects.push_back(collision_object1);
-  // //planning_scene_monitor::LockedPlanningSceneRO(planning_scene_monitor)->printKnownObjects(std::cout);
+  std::vector<moveit_msgs::CollisionObject> collision_objects;
+  collision_objects.push_back(collision_object1);
+  //planning_scene_monitor::LockedPlanningSceneRO(planning_scene_monitor)->printKnownObjects(std::cout);
 
-  // // Now, let's add the collision object into the world
-  // ROS_INFO_NAMED("tutorial", "Add an object into the world");
-  // planning_scene_interface.addCollisionObjects(collision_objects);
+  // Now, let's add the collision object into the world
+  ROS_INFO_NAMED("tutorial", "Add an object into the world");
+  planning_scene_interface.addCollisionObjects(collision_objects);
 
-  // // Show text in RViz of status
-  // visual_tools.publishText(text_pose, "Add object", rvt::WHITE, rvt::XLARGE);
-  // visual_tools.trigger();
+  // Show text in RViz of status
+  visual_tools.publishText(text_pose, "Add object", rvt::WHITE, rvt::XLARGE);
+  visual_tools.trigger();
 
-  // visual_tools.prompt("Press 'next' to solve the motion planning problem with trajopt");
+  visual_tools.prompt("Press 'next' to solve the motion planning problem with trajopt");
 
   // Solve the problem
   // ========================================================================================

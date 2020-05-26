@@ -366,7 +366,6 @@ int main(int argc, char** argv)
   collision_objects.push_back(collision_object2);
   planning_scene_monitor::LockedPlanningSceneRO(planning_scene_monitor)->printKnownObjects(std::cout);
 
-
   // Now, let's add the collision object into the world
   ROS_INFO_NAMED("tutorial", "Add an object into the world");
   planning_scene_interface.addCollisionObjects(collision_objects);
@@ -399,7 +398,6 @@ int main(int argc, char** argv)
 
   // Wait for MoveGroup to recieve and process the collision object message
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object appears in RViz");
-
 
 
   // Now when we plan a trajectory it will avoid the obstacle
