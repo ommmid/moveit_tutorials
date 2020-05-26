@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Launch main node -->
+  <node name="trajopt_example_with_collision" pkg="moveit_tutorials" type="trajopt_example_with_collision" respawn="false" output="screen">
+    <rosparam command="load" file="$(find panda_moveit_config)/config/trajopt_planning.yaml"/>
+  </node>
+
+</launch>

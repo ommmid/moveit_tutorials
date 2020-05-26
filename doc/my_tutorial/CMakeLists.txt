@@ -9,7 +9,6 @@ include_directories(
 # we do not use this name for "#include". "#include" should use the name of the header file
 add_library(misc_lib src/misc.cpp)
 target_link_libraries(misc_lib  ${catkin_LIBRARIES}  ${Boost_LIBRARIES})
-# set_target_properties(my_tutorial_misc  PROPERTIES  VERSION  "${my_tutorial_misc_VERSION}")
 
 add_executable(my_planning_scene_tutorial src/my_planning_scene_tutorial.cpp)
 # the first argument of this needs to be created by add_executable() or add_library()
@@ -41,4 +40,9 @@ install(TARGETS map_pair
 add_executable(test_misc src/test_misc.cpp)
 target_link_libraries(test_misc ${catkin_LIBRARIES} ${Boost_LIBRARIES} misc_lib)
 install(TARGETS test_misc 
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+add_executable(trajopt_example_with_collision src/trajopt_example_with_collision.cpp)
+target_link_libraries(trajopt_example_with_collision ${catkin_LIBRARIES} ${Boost_LIBRARIES} misc_lib)
+install(TARGETS trajopt_example_with_collision 
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
