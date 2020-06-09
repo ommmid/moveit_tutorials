@@ -40,17 +40,7 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_scene/planning_scene.h>
 
-#include <moveit/planning_scene_interface/planning_scene_interface.h>
-
 #include <moveit/kinematic_constraints/utils.h>
-
-#include <moveit/collision_detection/collision_common.h>
-
-#include <moveit_msgs/DisplayRobotState.h>
-#include <moveit_msgs/DisplayTrajectory.h>
-#include <moveit_msgs/AttachedCollisionObject.h>
-#include <moveit_msgs/CollisionObject.h>
-
 
 // BEGIN_SUB_TUTORIAL stateFeasibilityTestExample
 //
@@ -68,7 +58,7 @@ bool stateFeasibilityTestExample(const robot_state::RobotState& kinematic_state,
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "panda_arm_kinematics");
+  ros::init(argc, argv, "my_planning_scene");
   ros::AsyncSpinner spinner(1);
   spinner.start();
   std::size_t count = 0;
@@ -90,7 +80,6 @@ int main(int argc, char** argv)
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
   planning_scene::PlanningScene planning_scene(kinematic_model);
-
 
   // Collision Checking
   // ^^^^^^^^^^^^^^^^^^
@@ -115,56 +104,6 @@ int main(int argc, char** argv)
   planning_scene.checkSelfCollision(collision_request, collision_result);
   ROS_INFO_STREAM("Test 1: Current state is " << (collision_result.collision ? "in" : "not in") << " self collision");
 
-  ROS_INFO_STREAM("distance: " << collision_result.distance);
-  ROS_INFO_STREAM("number of contacts: " << collision_result.contact_count);
-  
-  // see the bodies involved in the contact
-  for(auto& x : collision_result.contacts){
-    ROS_INFO_STREAM(x.first.first << "   " << x.first.second);
-    
-    for(collision_detection::Contact c : x.second){
-      ROS_INFO_STREAM("first body: " << c.body_name_1 << "   second body:" << c.body_name_2);
-    }
-  }
-
-
-  moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-
-  // add an object to the scene
-  // Define a collision object ROS message.
-  moveit_msgs::CollisionObject collision_object;
-  collision_object.header.frame_id = "world"; //move_group.getPlanningFrame();
-
-  // The id of the object is used to identify it.
-  collision_object.id = "box1";
-
-  // Define a box to add to the world.
-  shape_msgs::SolidPrimitive primitive;
-  primitive.type = primitive.BOX;
-  primitive.dimensions.resize(3);
-  primitive.dimensions[0] = 0.4;
-  primitive.dimensions[1] = 0.1;
-  primitive.dimensions[2] = 0.4;
-
-  // Define a pose for the box (specified relative to frame_id)
-  geometry_msgs::Pose box_pose;
-  box_pose.orientation.w = 1.0;
-  box_pose.position.x = 0.4;
-  box_pose.position.y = -0.2;
-  box_pose.position.z = 1.0;
-
-  collision_object.primitives.push_back(primitive);
-  collision_object.primitive_poses.push_back(box_pose);
-  collision_object.operation = collision_object.ADD;
-
-  std::vector<moveit_msgs::CollisionObject> collision_objects;
-  collision_objects.push_back(collision_object);
-
-  // Now, let's add the collision object into the world
-  ROS_INFO_NAMED("tutorial", "Add an object into the world");
-  planning_scene_interface.addCollisionObjects(collision_objects);
-
-
   // Change the state
   // ~~~~~~~~~~~~~~~~
   //
@@ -174,7 +113,7 @@ int main(int argc, char** argv)
   // new robot configuration. Note in particular that we need to clear
   // the collision_result before making a new collision checking
   // request.
-/* 
+
   robot_state::RobotState& current_state = planning_scene.getCurrentStateNonConst();
   current_state.setToRandomPositions();
   collision_result.clear();
@@ -357,7 +296,7 @@ int main(int argc, char** argv)
   // currently perform collision checking, constraint checking and
   // feasibility checking using user-defined callbacks.
   // END_TUTORIAL
- */
+
   ros::shutdown();
   return 0;
 }

@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
 
-// why using visual_tools.prompt before addCollisionObjects makes the object appear in rviz???
+// why should visual_tools.prompt be used before addCollisionObjects to make the object appear in rviz???
 // becaue it publishes to the right topic for the object to show up in the rviz
 
   planning_scene_interface.addCollisionObjects(collision_objects);

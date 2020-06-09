@@ -134,8 +134,7 @@ int main(int argc, char** argv)
 
   // Start the demo
   // ^^^^^^^^^^^^^^^^^^^^^^^^^
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
-
+  visual_tools.prompt("Press 'next': planning to a pose goal");
 
   // Planning to a Pose goal
   // ^^^^^^^^^^^^^^^^^^^^^^^
@@ -148,10 +147,6 @@ int main(int argc, char** argv)
   target_pose1.position.z = 0.5;
   move_group.setPoseTarget(target_pose1);
 
-  // misc::getSelfCollisionInformation(planning_scene);
-  // misc::getFullCollisionInformation(planning_scene);
-
-
   // Now, we call the planner to compute the plan and visualize it.
   // Note that we are just planning, not asking move_group
   // to actually move the robot. However it shows the robot moving along the path
@@ -163,7 +158,6 @@ int main(int argc, char** argv)
 
   ROS_INFO_NAMED("tutorial", "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
 
-
   // Visualizing plans
   // ^^^^^^^^^^^^^^^^^
   // We can also visualize the plan as a line with markers in RViz.
@@ -172,7 +166,7 @@ int main(int argc, char** argv)
   visual_tools.publishText(text_pose, "Pose Goal", rvt::WHITE, rvt::XLARGE);
   visual_tools.publishTrajectoryLine(my_plan.trajectory_, joint_model_group);
   visual_tools.trigger();
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to continue the demo");
+  visual_tools.prompt("Press 'next': Planning to a joint-space goal");
 
   // Moving to a pose goal
   // ^^^^^^^^^^^^^^^^^^^^^
@@ -214,7 +208,7 @@ int main(int argc, char** argv)
   visual_tools.publishText(text_pose, "Joint Space Goal", rvt::WHITE, rvt::XLARGE);
   visual_tools.publishTrajectoryLine(my_plan.trajectory_, joint_model_group);
   visual_tools.trigger();
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to continue the demo");
+  visual_tools.prompt("Press 'next': Planning with Path Constraints");
 
   // Planning with Path Constraints
   // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -267,12 +261,12 @@ int main(int argc, char** argv)
   visual_tools.publishText(text_pose, "Constrained Goal", rvt::WHITE, rvt::XLARGE);
   visual_tools.publishTrajectoryLine(my_plan.trajectory_, joint_model_group);
   visual_tools.trigger();
-  visual_tools.prompt("next step");
+  visual_tools.prompt("Press 'next': planning Cartesian waypoints");
 
   // When done with the path constraint be sure to clear it.
   move_group.clearPathConstraints();
 
-  // Cartesian Paths
+  // Cartesian waypoints
   // ^^^^^^^^^^^^^^^
   // You can plan a Cartesian path directly by specifying a list of waypoints
   // for the end-effector to go through. Note that we are starting
@@ -317,7 +311,7 @@ int main(int argc, char** argv)
   for (std::size_t i = 0; i < waypoints.size(); ++i)
     visual_tools.publishAxisLabeled(waypoints[i], "pt" + std::to_string(i), rvt::SMALL);
   visual_tools.trigger();
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to continue the demo");
+  visual_tools.prompt("Press 'next': Add objects ");
 
   // Adding/Removing Objects and Attaching/Detaching Objects
   // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -356,9 +350,9 @@ int main(int argc, char** argv)
   primitive2.dimensions[2] = 0.4;
   geometry_msgs::Pose box2_pose;
   box2_pose.orientation.w = 1.0;
-  box2_pose.position.x = 0;
+  box2_pose.position.x = 0.4;
   box2_pose.position.y = 0;
-  box2_pose.position.z = 0.5;
+  box2_pose.position.z = 0.8;
   collision_object2.primitives.push_back(primitive2);
   collision_object2.primitive_poses.push_back(box2_pose);
   collision_object2.operation = collision_object2.ADD;
@@ -376,11 +370,11 @@ int main(int argc, char** argv)
 
   // ><><><><><> check collision <><><><><><
   planning_scene_monitor->updateSceneWithCurrentState();
-  misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::SELF);
-  misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::FULL);
+  // misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::SELF);
+  // misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::FULL);
 
   // Wait for MoveGroup to recieve and process the collision object message
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object appears in RViz");
+  visual_tools.prompt("Press 'next': remove object2 which is in collision");
 
   // remove collsion object2 which was in collision
   std::vector<std::string> remove_objects_ids = {"box2"};
@@ -397,8 +391,7 @@ int main(int argc, char** argv)
   misc::displayCollisionInfo(planning_scene_monitor, misc::CollisionType::FULL);
 
   // Wait for MoveGroup to recieve and process the collision object message
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object appears in RViz");
-
+  visual_tools.prompt("Press 'next': planning with avoiding obstacle");
 
   // Now when we plan a trajectory it will avoid the obstacle
   move_group.setStartState(*move_group.getCurrentState());
@@ -417,7 +410,7 @@ int main(int argc, char** argv)
   visual_tools.publishText(text_pose, "Obstacle Goal", rvt::WHITE, rvt::XLARGE);
   visual_tools.publishTrajectoryLine(my_plan.trajectory_, joint_model_group);
   visual_tools.trigger();
-  visual_tools.prompt("next step");
+  visual_tools.prompt("Press 'next': attach the collision object to the robot");
 
   // Now, let's attach the collision object to the robot.
   ROS_INFO_NAMED("tutorial", "Attach the object to the robot");
@@ -428,8 +421,7 @@ int main(int argc, char** argv)
   visual_tools.trigger();
 
   /* Wait for MoveGroup to recieve and process the attached collision object message */
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object attaches to the "
-                      "robot");
+  visual_tools.prompt("Press 'next': detach the object from the robot");
 
   // lets move the robot to the goal and see if the object moves with it
   // move_group.move();
@@ -443,21 +435,20 @@ int main(int argc, char** argv)
   visual_tools.trigger();
 
   /* Wait for MoveGroup to recieve and process the attached collision object message */
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object detaches to the "
-                      "robot");
+  visual_tools.prompt("Press 'next': remove collision object from world");
 
-  // // Now, let's remove the collision object from the world.
+  // Now, let's remove the collision object from the world.
   ROS_INFO_NAMED("tutorial", "Remove the object from the world");
   std::vector<std::string> object_ids;
   object_ids.push_back(collision_object1.id);
   planning_scene_interface.removeCollisionObjects(object_ids);
 
-  // // Show text in RViz of status
+  // Show text in RViz of status
   visual_tools.publishText(text_pose, "Object removed", rvt::WHITE, rvt::XLARGE);
   visual_tools.trigger();
 
-  // /* Wait for MoveGroup to recieve and process the attached collision object message */
-  visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to once the collision object disapears");
+  /* Wait for MoveGroup to recieve and process the attached collision object message */
+  visual_tools.prompt("Press 'next': end the tutorial");
 
   // END_TUTORIAL
 

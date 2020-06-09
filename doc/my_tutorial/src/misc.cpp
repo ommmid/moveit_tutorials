@@ -17,8 +17,10 @@
 
 namespace misc{
 
+// display collision info by given planning scene monitor
 void displayCollisionInfo(planning_scene_monitor::PlanningSceneMonitorPtr& psm,
-                            CollisionType ctype){
+                            CollisionType ctype)
+{
 
     std::string collision_type;
     switch(ctype){
@@ -42,33 +44,59 @@ void displayCollisionInfo(planning_scene_monitor::PlanningSceneMonitorPtr& psm,
                                                         collision_request, collision_result);
     }
     
-    ROS_INFO_STREAM("><><><><><> " << collision_type <<" collision information <><><><><><");
+    ROS_INFO_STREAM("=============== " << collision_type);
     ROS_INFO_STREAM("Collision Test: Current state is " 
                     << (collision_result.collision ? "in " : "NOT in ") << collision_type << " collision");
-    ROS_INFO_STREAM("distance: " << collision_result.distance);
+    ROS_INFO_STREAM("collision result distance: " << collision_result.distance);
     ROS_INFO_STREAM("number of contacts: " << collision_result.contact_count);
   
     collision_detection::CollisionResult::ContactMap::const_iterator it;
     for (it = collision_result.contacts.begin(); it != collision_result.contacts.end(); ++it)
     {
-        ROS_INFO("Contact between: %s and %s", it->first.first.c_str(), it->first.second.c_str());
+        ROS_INFO("=== Contact between: %s and %s ===", it->first.first.c_str(), it->first.second.c_str());
+        // dig into the second element of ContactMap which is vector<Contact> :
+        for (auto contact : it->second)
+        {
+            ROS_INFO_STREAM("pos: " << contact.pos << "   normal: " << contact.normal << "   depth: " 
+            << contact.normal << "   body_name1:" << contact.body_name_1 << "   body_name2:" << contact.body_name_2);
+        }
     }
+    ROS_INFO_STREAM("===============");
+}
 
-  // see the bodies involved in the contact
-//   for(auto& x : collision_result.contacts){
-//         ROS_INFO_STREAM("first body: " << x.first.first << "   second body: " << x.first.second);
+// display collision info by given planning scene
+void displayCollisionInfo(collision_detection::CollisionResult& collision_result, CollisionType ctype)
+{
+
+    std::string collision_type;
+    switch(ctype){
+        case CollisionType::SELF:
+            collision_type = "SELF";
+            break;
+        case CollisionType::FULL:
+            collision_type = "FULL";
+            break;
+    }
     
-//         //contact_information.contacts.push_back(x);
-//         for(collision_detection::Contact c : x.second){
-//             ROS_INFO_STREAM("first body: " << c.body_name_1 << "   second body:" << c.body_name_2);
-//         }
-//   }
-
-ROS_INFO_STREAM("----------------------------------------------------");
-
+    ROS_INFO_STREAM("=============== " << collision_type);
+    ROS_INFO_STREAM("Collision Test: Current state is " 
+                    << (collision_result.collision ? "in " : "NOT in ") << collision_type << " collision");
+    ROS_INFO_STREAM("collision result distance: " << collision_result.distance);
+    ROS_INFO_STREAM("number of contacts: " << collision_result.contact_count);
+    ROS_INFO_STREAM("number of elements in ContactMap: " << collision_result.contacts.size());
+  
+    collision_detection::CollisionResult::ContactMap::const_iterator it;
+    for (it = collision_result.contacts.begin(); it != collision_result.contacts.end(); ++it)
+    {
+        ROS_INFO("=== Contact between: %s and %s ===", it->first.first.c_str(), it->first.second.c_str());
+        // dig into the second element of ContactMap which is vector<Contact> :
+        for (auto contact : it->second)
+        {
+            ROS_INFO_STREAM("pos: " << contact.pos << "   normal: " << contact.normal << "   depth: " 
+            << contact.normal << "   body_name1:" << contact.body_name_1 << "   body_name2:" << contact.body_name_2);
+        }
+    }
+    ROS_INFO_STREAM("===============");
 }
 
-
-
-
-}
+} // namespace misc

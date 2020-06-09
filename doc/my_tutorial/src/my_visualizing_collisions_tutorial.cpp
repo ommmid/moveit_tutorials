@@ -47,8 +47,6 @@
 #include <moveit/collision_detection_fcl/collision_env_fcl.h>
 #include <moveit/collision_detection/collision_tools.h>
 
-#include <moveit/collision_detection_bullet/collision_detector_allocator_bullet.h>
-
 planning_scene::PlanningScene* g_planning_scene = 0;
 shapes::ShapePtr g_world_cube_shape;
 ros::Publisher* g_marker_array_publisher = 0;
@@ -115,8 +113,6 @@ void computeCollisionContactPoints(InteractiveRobot& robot)
 
   // Checking for Collisions
   // ^^^^^^^^^^^^^^^^^^^^^^^
-  // Set the collision detector
-  g_planning_scene->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create());
   // We check for collisions between robot and itself or the world.
   g_planning_scene->checkCollision(c_req, c_res, *robot.robotState());
 
@@ -133,26 +129,7 @@ void computeCollisionContactPoints(InteractiveRobot& robot)
   // for how.
   if (c_res.collision)
   {
-    ROS_INFO("COLLIDING contact_point_count = %d", (int)c_res.contact_count);
-
-
-    ROS_INFO_STREAM("collision result distance: " << c_res.distance);
-    ROS_INFO_STREAM("number of elements in ContactMap: " << c_res.contacts.size()); 
-    collision_detection::CollisionResult::ContactMap::const_iterator it;
-    for (it = c_res.contacts.begin(); it != c_res.contacts.end(); ++it)
-    {
-        ROS_INFO("\n===>>> Contact between: %s and %s ", it->first.first.c_str(), it->first.second.c_str());
-        // dig into the second element of ContactMap which is vector<Contact> :
-        for (auto contact : it->second)
-        {
-            ROS_INFO_STREAM("body_name1: " << contact.body_name_1 << "   body_name2: " << contact.body_name_2 
-            << "\npos: " << contact.pos[0] << ", " << contact.pos[1] << ", " << contact.pos[2]
-            << "\nnormal: " << contact.normal[0] << ", " << contact.normal[1] << ", " << contact.normal[2]
-            << "\ndepth: " << contact.depth );
-        }
-    }
-
-
+    ROS_INFO("COLLIDING contact_point_count=%d", (int)c_res.contact_count);
     if (c_res.contact_count > 0)
     {
       std_msgs::ColorRGBA color;

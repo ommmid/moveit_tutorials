@@ -35,5 +35,6 @@ enum CollisionType
 void displayCollisionInfo(planning_scene_monitor::PlanningSceneMonitorPtr& psm,
                             CollisionType ctype);
 
+void displayCollisionInfo(collision_detection::CollisionResult& collision_result, CollisionType ctype);
 }
 

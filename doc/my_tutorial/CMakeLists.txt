@@ -31,12 +31,6 @@ target_link_libraries(collision_object  ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 install(TARGETS collision_object
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-add_executable(map_pair src/map_pair.cpp)
-target_link_libraries(map_pair  ${catkin_LIBRARIES} ${Boost_LIBRARIES})
-install(TARGETS map_pair 
-        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-
-
 add_executable(test_misc src/test_misc.cpp)
 target_link_libraries(test_misc ${catkin_LIBRARIES} ${Boost_LIBRARIES} misc_lib)
 install(TARGETS test_misc 
@@ -46,3 +40,19 @@ add_executable(trajopt_example_with_collision src/trajopt_example_with_collision
 target_link_libraries(trajopt_example_with_collision ${catkin_LIBRARIES} ${Boost_LIBRARIES} misc_lib)
 install(TARGETS trajopt_example_with_collision 
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+add_executable(check_collision src/check_collision.cpp)
+target_link_libraries(check_collision ${catkin_LIBRARIES} ${Boost_LIBRARIES} misc_lib)
+install(TARGETS check_collision
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+add_executable(my_visualizing_collisions_tutorial src/my_visualizing_collisions_tutorial.cpp)
+target_link_libraries(my_visualizing_collisions_tutorial
+        ${interactive_markers_LIBRARIES}
+        interactivity_utils
+        ${catkin_LIBRARIES}
+         ${Boost_LIBRARIES}
+          misc_lib)
+install(TARGETS my_visualizing_collisions_tutorial
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+        
