@@ -113,9 +113,12 @@ void computeCollisionContactPoints(InteractiveRobot& robot)
   c_req.max_contacts_per_pair = 5;
   c_req.verbose = false;
 
+  //get the proximities
+  c_req.distance = true;
+
   // Checking for Collisions
   // ^^^^^^^^^^^^^^^^^^^^^^^
-  // Set the collision detector
+  // Set the collision detector (if not set, the default is FCL)
   g_planning_scene->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create());
   // We check for collisions between robot and itself or the world.
   g_planning_scene->checkCollision(c_req, c_res, *robot.robotState());
