@@ -235,8 +235,9 @@ int main(int argc, char** argv)
   std::vector<moveit_msgs::CollisionObject> collision_objects;
   collision_objects.push_back(collision_object);
 
-  planning_scene_interface.addCollisionObjects(collision_objects);
-  void collisionObjectCallback(const moveit_msgs::CollisionObjectConstPtr& obj);
+  moveit_msgs::CollisionObjectConstPtr& obj = &collision_object;
+
+  psm.collisionObjectCallback(obj);
 
   visual_tools.prompt("Press 'next' to finish demo \n");
 }
