@@ -207,11 +207,11 @@ int main(int argc, char** argv)
   // add collision object
   // ========================================================================================
 
-  moveit_msgs::CollisionObject collision_object;
-  collision_object.header.frame_id = "world"; // move_group.getPlanningFrame();
+  moveit_msgs::CollisionObjectConstPtr collision_object;
+  collision_object0->header.frame_id = "world"; // move_group.getPlanningFrame();
   
   // The id of the object is used to identify it.
-  collision_object.id = "box1";
+  collision_object->id = "box1";
 
   // Define a box to add to the world.
   shape_msgs::SolidPrimitive primitive;
@@ -228,16 +228,14 @@ int main(int argc, char** argv)
   box_pose.position.y = -0.2;
   box_pose.position.z = 1.0;
 
-  collision_object.primitives.push_back(primitive);
-  collision_object.primitive_poses.push_back(box_pose);
-  collision_object.operation = collision_object.ADD;
+  collision_object->primitives.push_back(primitive);
+  collision_object->primitive_poses.push_back(box_pose);
+  collision_object->operation = collision_object->ADD;
 
-  std::vector<moveit_msgs::CollisionObject> collision_objects;
+  std::vector<moveit_msgs::CollisionObjectConstPtr> collision_objects;
   collision_objects.push_back(collision_object);
 
-  moveit_msgs::CollisionObjectConstPtr& obj = &collision_object;
-
-  psm.collisionObjectCallback(obj);
+  psm.collisionObjectCallback(collision_object);
 
   visual_tools.prompt("Press 'next' to finish demo \n");
 }
