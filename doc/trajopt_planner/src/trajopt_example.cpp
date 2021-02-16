@@ -203,5 +203,40 @@ int main(int argc, char** argv)
   visual_tools.publishText(text_pose, "goal pose", rvt::WHITE, rvt::XLARGE);
   visual_tools.trigger();
 
+  visual_tools.prompt("Press 'next' to add a collision object to the scene \n");
+  // add collision object
+  // ========================================================================================
+
+  moveit_msgs::CollisionObject collision_object;
+  collision_object.header.frame_id = "world"; // move_group.getPlanningFrame();
+  
+  // The id of the object is used to identify it.
+  collision_object.id = "box1";
+
+  // Define a box to add to the world.
+  shape_msgs::SolidPrimitive primitive;
+  primitive.type = primitive.BOX;
+  primitive.dimensions.resize(3);
+  primitive.dimensions[0] = 0.4;
+  primitive.dimensions[1] = 0.3;
+  primitive.dimensions[2] = 0.4;
+
+  // Define a pose for the box (specified relative to frame_id)
+  geometry_msgs::Pose box_pose;
+  box_pose.orientation.w = 1.0;
+  box_pose.position.x = 0.4;
+  box_pose.position.y = -0.2;
+  box_pose.position.z = 1.0;
+
+  collision_object.primitives.push_back(primitive);
+  collision_object.primitive_poses.push_back(box_pose);
+  collision_object.operation = collision_object.ADD;
+
+  std::vector<moveit_msgs::CollisionObject> collision_objects;
+  collision_objects.push_back(collision_object);
+
+  planning_scene_interface.addCollisionObjects(collision_objects);
+  void collisionObjectCallback(const moveit_msgs::CollisionObjectConstPtr& obj);
+
   visual_tools.prompt("Press 'next' to finish demo \n");
 }
