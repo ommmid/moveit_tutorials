@@ -17,6 +17,10 @@
 
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <moveit_msgs/PlanningScene.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/move_group/capability_names.h>
+#include <moveit_msgs/GetPlanningScene.h>
+#include <moveit_msgs/ApplyPlanningScene.h>
 
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2/utils.h>
@@ -59,6 +63,7 @@ int main(int argc, char** argv)
       new robot_state::RobotState(planning_scene_monitor::LockedPlanningSceneRO(psm)->getCurrentState()));
   robot_state->setToDefaultValues();
   robot_state->update();
+  robot_state::RobotStatePtr robot_state_start(robot_state);
 
   // Create JointModelGroup
   const robot_state::JointModelGroup* joint_model_group = robot_state->getJointModelGroup(PLANNING_GROUP);
@@ -97,6 +102,7 @@ int main(int argc, char** argv)
   std::vector<double> start_joint_values = { 0.4, 0.3, 0.5, -0.55, 0.88, 1.0, -0.075 };
   robot_state->setJointGroupPositions(joint_model_group, start_joint_values);
   robot_state->update();
+
 
   req.start_state.joint_state.name = joint_names;
   req.start_state.joint_state.position = start_joint_values;
@@ -156,7 +162,6 @@ int main(int argc, char** argv)
 
   // add collision object
   // ========================================================================================
-
   moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
   moveit_msgs::CollisionObject collision_object;
@@ -189,7 +194,10 @@ int main(int argc, char** argv)
 
   visual_tools.prompt("Press 'next' to show the collision object \n");
 
+
   planning_scene_interface.addCollisionObjects(collision_objects);
+  psm->updateSceneWithCurrentState();
+
 
   // Check collision
   collision_detection::CollisionRequest collision_req;
@@ -200,8 +208,11 @@ int main(int argc, char** argv)
   collision_req.max_contacts_per_pair = 5;
   collision_req.verbose = false;
   // psm->getPlanningScene()->checkCollision(collision_req, collision_res);
-  planning_scene_monitor::LockedPlanningSceneRO(psm)->checkCollision(collision_req, collision_res);
+  planning_scene_monitor::LockedPlanningSceneRO(psm)->checkCollision(collision_req, collision_res, *robot_state_start);
+  std::cout << "+++++++++++++++ start state is in collision? " << collision_res.collision << std::endl;
   std::cout << "+++++++++++++++ number of contacts " << collision_res.contact_count << std::endl;
+
+
 
   // Solve the problem
   // ========================================================================================
