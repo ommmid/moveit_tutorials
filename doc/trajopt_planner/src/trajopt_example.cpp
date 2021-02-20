@@ -1,6 +1,8 @@
 #include <ros/ros.h>
 #include <ros/console.h>
-#include <moveit/planning_interface/planning_interface.h>
+// #include <moveit/planning_interface/planning_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/collision_detection_bullet/collision_detector_allocator_bullet.h>
 
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_scene/planning_scene.h>
@@ -46,6 +48,9 @@ int main(int argc, char** argv)
   psm->startSceneMonitor();
   psm->startWorldGeometryMonitor();
   psm->startStateMonitor();
+
+  // Set the collision detectro to Bullet
+  psm->getPlanningScene()->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create());
 
   robot_model::RobotModelPtr robot_model = robot_model_loader->getModel();
 
@@ -126,7 +131,9 @@ int main(int argc, char** argv)
   // Visualization
   // ========================================================================================
   namespace rvt = rviz_visual_tools;
-  moveit_visual_tools::MoveItVisualTools visual_tools("panda_link0", rviz_visual_tools::RVIZ_MARKER_TOPIC, psm);
+  // moveit_visual_tools::MoveItVisualTools visual_tools("panda_link0", rviz_visual_tools::RVIZ_MARKER_TOPIC, psm);
+  moveit_visual_tools::MoveItVisualTools visual_tools("panda_link0");
+
   visual_tools.loadRobotStatePub("/display_robot_state");
   visual_tools.enableBatchPublishing();
   visual_tools.deleteAllMarkers();  // clear all old markers
@@ -147,12 +154,62 @@ int main(int argc, char** argv)
   /* We can also use visual_tools to wait for user input */
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
 
+  // add collision object
+  // ========================================================================================
+
+  moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+
+  moveit_msgs::CollisionObject collision_object;
+  collision_object.header.frame_id = "world"; 
+  
+  // The id of the object is used to identify it.
+  collision_object.id = "box1";
+
+  // Define a box to add to the world.
+  shape_msgs::SolidPrimitive primitive;
+  primitive.type = primitive.BOX;
+  primitive.dimensions.resize(3);
+  primitive.dimensions[0] = 0.2;
+  primitive.dimensions[1] = 0.2;
+  primitive.dimensions[2] = 0.2;
+
+  // Define a pose for the box (specified relative to frame_id)
+  geometry_msgs::Pose box_pose;
+  box_pose.orientation.w = 1.0;
+  box_pose.position.x =0;   //0.3;
+  box_pose.position.y =0;   //0.6;
+  box_pose.position.z =0.5; //0.75;
+
+  collision_object.primitives.push_back(primitive);
+  collision_object.primitive_poses.push_back(box_pose);
+  collision_object.operation = collision_object.ADD;
+
+  std::vector<moveit_msgs::CollisionObject> collision_objects;
+  collision_objects.push_back(collision_object);
+
+  visual_tools.prompt("Press 'next' to show the collision object \n");
+
+  planning_scene_interface.addCollisionObjects(collision_objects);
+
+  // Check collision
+  collision_detection::CollisionRequest collision_req;
+  collision_detection::CollisionResult collision_res;
+  collision_req.group_name = PLANNING_GROUP;
+  collision_req.contacts = true;
+  collision_req.max_contacts = 100;
+  collision_req.max_contacts_per_pair = 5;
+  collision_req.verbose = false;
+  // psm->getPlanningScene()->checkCollision(collision_req, collision_res);
+  planning_scene_monitor::LockedPlanningSceneRO(psm)->checkCollision(collision_req, collision_res);
+  std::cout << "+++++++++++++++ number of contacts " << collision_res.contact_count << std::endl;
+
   // Solve the problem
   // ========================================================================================
   // Before planning, we will need a Read Only lock on the planning scene so that it does not modify the world
   // representation while planning
   {
-    planning_scene_monitor::LockedPlanningSceneRO lscene(psm);
+    planning_scene_monitor::LockedPlanningSceneRO lscene(psm); // lscene is of type PlanningSceneConstPtr
+
     /* Now, call the pipeline and check whether planning was successful. */
     planning_pipeline->generatePlan(lscene, req, res);
   }
@@ -202,40 +259,6 @@ int main(int argc, char** argv)
   visual_tools.publishAxisLabeled(pose_msg_goal, "goal");
   visual_tools.publishText(text_pose, "goal pose", rvt::WHITE, rvt::XLARGE);
   visual_tools.trigger();
-
-  visual_tools.prompt("Press 'next' to add a collision object to the scene \n");
-  // add collision object
-  // ========================================================================================
-
-  moveit_msgs::CollisionObjectConstPtr collision_object;
-  collision_object0->header.frame_id = "world"; // move_group.getPlanningFrame();
-  
-  // The id of the object is used to identify it.
-  collision_object->id = "box1";
-
-  // Define a box to add to the world.
-  shape_msgs::SolidPrimitive primitive;
-  primitive.type = primitive.BOX;
-  primitive.dimensions.resize(3);
-  primitive.dimensions[0] = 0.4;
-  primitive.dimensions[1] = 0.3;
-  primitive.dimensions[2] = 0.4;
-
-  // Define a pose for the box (specified relative to frame_id)
-  geometry_msgs::Pose box_pose;
-  box_pose.orientation.w = 1.0;
-  box_pose.position.x = 0.4;
-  box_pose.position.y = -0.2;
-  box_pose.position.z = 1.0;
-
-  collision_object->primitives.push_back(primitive);
-  collision_object->primitive_poses.push_back(box_pose);
-  collision_object->operation = collision_object->ADD;
-
-  std::vector<moveit_msgs::CollisionObjectConstPtr> collision_objects;
-  collision_objects.push_back(collision_object);
-
-  psm.collisionObjectCallback(collision_object);
 
   visual_tools.prompt("Press 'next' to finish demo \n");
 }
