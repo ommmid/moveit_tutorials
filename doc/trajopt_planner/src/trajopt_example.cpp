@@ -196,8 +196,7 @@ int main(int argc, char** argv)
 
 
   planning_scene_interface.addCollisionObjects(collision_objects);
-  psm->updateSceneWithCurrentState();
-
+  psm->updateSceneWithCurrentState(); // this is very important
 
   // Check collision
   collision_detection::CollisionRequest collision_req;
