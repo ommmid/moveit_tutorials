@@ -156,7 +156,7 @@ int main(int argc, char** argv)
   // psm->startWorldGeometryMonitor();
   // psm->startStateMonitor();
   // Set the collision detectro to Bullet
-  // psm->getPlanningScene()->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create());
+  planning_scene->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create());
 
   // Create JointModelGroup
   const robot_state::JointModelGroup* joint_model_group = robot_state->getJointModelGroup(PLANNING_GROUP);
@@ -389,9 +389,9 @@ int main(int argc, char** argv)
   collision_detection::CollisionResult collision_res;
   collision_req.group_name = PLANNING_GROUP;
   collision_req.contacts = true;
-  collision_req.max_contacts = 100;
-  collision_req.max_contacts_per_pair = 5;
-  collision_req.verbose = false;
+  // collision_req.max_contacts = 100;
+  // collision_req.max_contacts_per_pair = 5;
+  // collision_req.verbose = false;
   // psm->getPlanningScene()->checkCollision(collision_req, collision_res);
   planning_scene->checkCollision(collision_req, collision_res);
   std::cout << "+++++++++++++++ start state is in collision? " << collision_res.collision << std::endl;
