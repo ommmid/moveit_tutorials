@@ -13,7 +13,6 @@
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include "moveit/planning_interface/planning_request.h"
 #include <moveit/robot_model/robot_model.h>
-#include <moveit/robot_state/robot_state.h>
 
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <moveit_msgs/PlanningScene.h>
@@ -26,6 +25,9 @@
 #include <tf2/utils.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_ros/transform_listener.h>
+
+#include <sensor_msgs/JointState.h>
+
 
 /* Author: Omid Heidari
    Desc: This file is a test for using trajopt in MoveIt. The goal is to make different types of constraints in
@@ -43,6 +45,39 @@ void printVector(std::string str, std::vector<K> v)
   std::cout << ss.str() << std::endl;
 }
 
+void publish_joint_state(ros::NodeHandle& n, const std::vector<double>& position)
+{
+  ros::Publisher joint_pub = n.advertise<sensor_msgs::JointState>("/joint_states", 10);
+  ros::Rate loop_rate(50);
+
+  sensor_msgs::JointState joint_state_msg;
+
+  joint_state_msg.header.stamp = ros::Time::now();
+  joint_state_msg.name.resize(9);
+  joint_state_msg.position.resize(9);
+
+  joint_state_msg.name[0] = "panda_joint1";         joint_state_msg.position[0] = position[0];
+  joint_state_msg.name[1] = "panda_joint2";         joint_state_msg.position[1] = position[1];
+  joint_state_msg.name[2] = "panda_joint3";         joint_state_msg.position[2] = position[2];
+  joint_state_msg.name[3] = "panda_joint4";         joint_state_msg.position[3] = position[3];
+  joint_state_msg.name[4] = "panda_joint5";         joint_state_msg.position[4] = position[4];
+  joint_state_msg.name[5] = "panda_joint6";         joint_state_msg.position[5] = position[5];
+  joint_state_msg.name[6] = "panda_joint7";         joint_state_msg.position[6] = position[6];
+  joint_state_msg.name[7] = "panda_finger_joint1";  joint_state_msg.position[7] = position[7];
+  joint_state_msg.name[8] = "panda_finger_joint2";  joint_state_msg.position[8] = position[8];
+
+  int count = 0;
+  while (count < 200)
+  {
+    std::cout << "count: " << count << std::endl;
+
+    joint_pub.publish(joint_state_msg);
+
+    loop_rate.sleep();
+    ++count;
+  }
+}
+
 int main(int argc, char** argv)
 {
   const std::string NODE_NAME = "trajopt_example";
@@ -56,23 +91,23 @@ int main(int argc, char** argv)
   robot_model_loader::RobotModelLoaderPtr robot_model_loader(
       new robot_model_loader::RobotModelLoader(ROBOT_DESCRIPTION));
 
-  // Create a planing scene monitor
-  planning_scene_monitor::PlanningSceneMonitorPtr psm(
-      new planning_scene_monitor::PlanningSceneMonitor(robot_model_loader));
+  // Dont use planning scene monitor because I do not want a motion planner like trajopt to be dependent on it.
+  // What we have access to in a motion planner is a const pointer to planning_scene from planning context
+  // so the questions becomes how to use this PlanningSceneConstPtr to check collision for different state of the robot
 
-  psm->startSceneMonitor();
-  psm->startWorldGeometryMonitor();
-  psm->startStateMonitor();
-
-  // Set the collision detectro to Bullet
-  psm->getPlanningScene()->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create());
-
+  // make planning scene and robot state with robotmodel
   robot_model::RobotModelPtr robot_model = robot_model_loader->getModel();
+  planning_scene::PlanningScenePtr planning_scene(new planning_scene::PlanningScene(robot_model));
+  robot_state::RobotStatePtr robot_state(new robot_state::RobotState(robot_model));
 
-  // Create a RobotState and to keep track of the current robot pose and planning group
-  robot_state::RobotStatePtr robot_state(
-      new robot_state::RobotState(planning_scene_monitor::LockedPlanningSceneRO(psm)->getCurrentState()));
-  // robot_state->setToDefaultValues();
+  // Create a planing scene monitor
+  // planning_scene_monitor::PlanningSceneMonitorPtr psm(
+  //     new planning_scene_monitor::PlanningSceneMonitor(robot_model_loader));
+  // psm->startSceneMonitor();
+  // psm->startWorldGeometryMonitor();
+  // psm->startStateMonitor();
+  // Set the collision detectro to Bullet
+  // psm->getPlanningScene()->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create());
 
   // Create JointModelGroup
   const robot_state::JointModelGroup* joint_model_group = robot_state->getJointModelGroup(PLANNING_GROUP);
@@ -82,6 +117,45 @@ int main(int argc, char** argv)
 
   printVector("joint names: ", joint_names);
 
+  // ----- change the robot state directly from the planning scne  
+  std::vector<double> joint_values = { 0.1, -0.2, 0, -0.356, 0, 0.5, 0.785 };
+  planning_scene->getCurrentStateNonConst().setJointGroupPositions(joint_model_group, joint_values);
+
+  std::vector<double> copied_joint_values;
+  planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
+  printVector("copied joint values: ", copied_joint_values);
+
+  // ----- chagne the robot state separately, does this have any effect on planning scene?
+  joint_values.clear();
+  joint_values =  { 0, -0.71, 0, -2.2, 0, 1.49, 0.71 };
+  robot_state->setJointGroupPositions(joint_model_group, joint_values);
+  robot_state->update();
+
+   robot_state::RobotState robot_state_initial(*robot_state);
+
+  // ----- no it does not. I have to update the scene through robot state
+  planning_scene->setCurrentState(*robot_state);
+
+  copied_joint_values.clear();
+  planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
+  printVector("copied joint values: ", copied_joint_values);
+
+  // ----- so what if I create a robot state pointer/alias that points to the planning scene's robot state
+  // robot_state::RobotStatePtr robot_state_ps = std::make_shared<moveit::core::RobotState>(planning_scene->getCurrentStateNonConst());
+  robot_state::RobotState& robot_state_ps = planning_scene->getCurrentStateNonConst();
+
+  joint_values.clear();
+  joint_values = { -0.1, 1.2, 0, -2, 0, 0, 0 };
+  robot_state_ps.setJointGroupPositions(joint_model_group, joint_values);
+  robot_state_ps.update();
+
+  copied_joint_values.clear();
+  planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
+  printVector("copied joint values: ", copied_joint_values);
+
+  // pointer did not work but updating the alias updated the robot state in planning scene
+
+ /*
   // Initial state
   std::vector<double> initial_joint_values = { 0, -0.785, 0, -2.356, 0, 1.571, 0.785 };
   robot_state->setJointGroupPositions(joint_model_group, initial_joint_values);
@@ -106,7 +180,7 @@ int main(int argc, char** argv)
   // Create response and request
   planning_interface::MotionPlanRequest req;
   planning_interface::MotionPlanResponse res;
-
+*/
   // Set start state
   // ======================================================================================
   // panda_arm joint limits:
@@ -117,7 +191,7 @@ int main(int argc, char** argv)
   //   -2.8973  2.8973
   //   -0.0175  3.7525
   //   -2.8973  2.8973
-
+/*
   std::vector<double> start_joint_values = { 0.4, 0.3, 0.5, -0.55, 0.88, 1.0, -0.075 };
   robot_state->setJointGroupPositions(joint_model_group, start_joint_values);
   robot_state->update();
@@ -131,7 +205,7 @@ int main(int argc, char** argv)
   //   std::cout << cur[k] << " ";
   // std::cout << std::endl;
 
-  req.start_state.joint_state.name = joint_names;
+  req.start_state.joint_state_msg.name = joint_names;
   req.start_state.joint_state.position = start_joint_values;
   req.goal_constraints.clear();
   req.group_name = PLANNING_GROUP;
@@ -139,6 +213,9 @@ int main(int argc, char** argv)
   geometry_msgs::Pose pose_msg_start;
   const Eigen::Isometry3d& end_effector_transform_start = robot_state->getGlobalLinkTransform(link_model_names.back());
   pose_msg_start = tf2::toMsg(end_effector_transform_start);
+*/
+
+ /*
   
   // Set the goal state 
   // ========================================================================================
@@ -202,7 +279,7 @@ int main(int argc, char** argv)
     req.reference_trajectories[0].joint_trajectory[0].joint_names = joint_names;
     req.reference_trajectories[0].joint_trajectory[0].points[step_index].positions = joint_values;
   }
-
+*/
   // Visualization
   // ========================================================================================
   namespace rvt = rviz_visual_tools;
@@ -214,19 +291,19 @@ int main(int argc, char** argv)
   visual_tools.deleteAllMarkers();  // clear all old markers
   visual_tools.trigger();
 
-  /* Remote control is an introspection tool that allows users to step through a high level script
-     via buttons and keyboard shortcuts in RViz */
+  // Remote control is an introspection tool that allows users to step through a high level script
+  // via buttons and keyboard shortcuts in RViz 
   visual_tools.loadRemoteControl();
 
-  /* RViz provides many types of markers, in this demo we will use text, cylinders, and spheres*/
+  // RViz provides many types of markers, in this demo we will use text, cylinders, and spheres
   Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity();
   text_pose.translation().z() = 1.75;
-  visual_tools.publishText(text_pose, "Motion Planning API Demo", rvt::WHITE, rvt::XLARGE);
+  visual_tools.publishText(text_pose, "Learn Demo", rvt::WHITE, rvt::XLARGE);
 
-  /* Batch publishing is used to reduce the number of messages being sent to RViz for large visualizations */
+  // Batch publishing is used to reduce the number of messages being sent to RViz for large visualizations 
   visual_tools.trigger();
 
-  /* We can also use visual_tools to wait for user input */
+  // We can also use visual_tools to wait for user input 
   visual_tools.prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
 
   // add collision object
@@ -250,9 +327,9 @@ int main(int argc, char** argv)
   // Define a pose for the box (specified relative to frame_id)
   geometry_msgs::Pose box_pose;
   box_pose.orientation.w = 1.0;
-  box_pose.position.x = 0.3;   //0.3;       0;
-  box_pose.position.y = 0.6;   //0.6;       0;
-  box_pose.position.z = 0.75; //0.75;    0.5;
+  box_pose.position.x = 0;   //0.3;       0;
+  box_pose.position.y = 0;   //0.6;       0;
+  box_pose.position.z = 0.5; //0.75;    0.5;
 
   collision_object.primitives.push_back(primitive);
   collision_object.primitive_poses.push_back(box_pose);
@@ -265,8 +342,22 @@ int main(int argc, char** argv)
 
 
   planning_scene_interface.addCollisionObjects(collision_objects);
-  psm->updateSceneWithCurrentState(); // this is very important because it does following:
-  //planning_scene_->getCurrentStateNonConst().update();
+  // psm->updateSceneWithCurrentState(); // this is very important
+  // planning_scene->getCurrentStateNonConst().update();
+  joint_values.clear();
+  joint_values =  { 0.1, -0.2, 0, -0.356, 0, 0.5, 0.785};
+  robot_state_ps.setJointGroupPositions(joint_model_group, joint_values);
+  robot_state_ps.update();
+  copied_joint_values.clear();
+  planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
+  printVector("initial joint values: ", copied_joint_values);
+  planning_scene->getCurrentStateNonConst().update();
+  planning_scene->printKnownObjects();
+  
+  visual_tools.prompt("Press 'next' to see the robot at initial state \n");
+  joint_values.push_back(0.2);
+  joint_values.push_back(0.2);
+  publish_joint_state(node_handle, joint_values);
 
   // this visual_tools.prompt is very important too, I dont know why
   visual_tools.prompt("Press 'next' to see the collision result at the start state \n");
@@ -276,11 +367,11 @@ int main(int argc, char** argv)
   collision_detection::CollisionResult collision_res;
   collision_req.group_name = PLANNING_GROUP;
   collision_req.contacts = true;
-  collision_req.max_contacts = 100;
-  collision_req.max_contacts_per_pair = 5;
-  collision_req.verbose = false;
+  // collision_req.max_contacts = 100;
+  // collision_req.max_contacts_per_pair = 5;
+  // collision_req.verbose = false;
   // psm->getPlanningScene()->checkCollision(collision_req, collision_res);
-  planning_scene_monitor::LockedPlanningSceneRO(psm)->checkCollision(collision_req, collision_res, robot_state_initial);
+  planning_scene->checkCollision(collision_req, collision_res);
   std::cout << "+++++++++++++++ start state is in collision? " << collision_res.collision << std::endl;
   std::cout << "+++++++++++++++ number of contacts " << collision_res.contact_count << std::endl;
    for (auto it = collision_res.contacts.begin(); it != collision_res.contacts.end(); ++it)
@@ -288,26 +379,26 @@ int main(int argc, char** argv)
       ROS_INFO("Contact between: %s and %s", it->first.first.c_str(), it->first.second.c_str());
   }
 
-  visual_tools.prompt("Press 'next' to see the collision result at a known colliding state \n");
+  // visual_tools.prompt("Press 'next' to see the collision result at a known colliding state \n");
 
-  //--- check collision at a known colliding state
-  std::vector<double> known_colliding_joint_values = { 0.577778, 0.477778, 0.722222, -0.883333, 1.33333, 1.53333, -0.0861111 };
-  robot_state->setJointGroupPositions(joint_model_group, known_colliding_joint_values);
-  // robot_state->setToDefaultValues();
-  robot_state->update();
-  robot_state::RobotState robot_state_known_colliding(*robot_state);
-  collision_res.clear();
+  // //--- check collision at a known colliding state
+  // std::vector<double> known_colliding_joint_values = { 0.577778, 0.477778, 0.722222, -0.883333, 1.33333, 1.53333, -0.0861111 };
+  // robot_state->setJointGroupPositions(joint_model_group, known_colliding_joint_values);
+  // // robot_state->setToDefaultValues();
+  // robot_state->update();
+  // robot_state::RobotState robot_state_known_colliding(*robot_state);
+  // collision_res.clear();
 
-  planning_scene_monitor::LockedPlanningSceneRO(psm)->checkCollision(collision_req, collision_res, robot_state_known_colliding);
-  std::cout << "+++++++++++++++ start state is in collision? " << collision_res.collision << std::endl;
-  std::cout << "+++++++++++++++ number of contacts " << collision_res.contact_count << std::endl;
-   for (auto it = collision_res.contacts.begin(); it != collision_res.contacts.end(); ++it)
-  {
-      ROS_INFO("Contact between: %s and %s", it->first.first.c_str(), it->first.second.c_str());
-  }
+  // planning_scene->checkCollision(collision_req, collision_res, robot_state_known_colliding);
+  // std::cout << "+++++++++++++++ start state is in collision? " << collision_res.collision << std::endl;
+  // std::cout << "+++++++++++++++ number of contacts " << collision_res.contact_count << std::endl;
+  //  for (auto it = collision_res.contacts.begin(); it != collision_res.contacts.end(); ++it)
+  // {
+  //     ROS_INFO("Contact between: %s and %s", it->first.first.c_str(), it->first.second.c_str());
+  // }
 
   visual_tools.prompt("Press 'next' do the planning \n");
-
+/*
   // Solve the problem
   // ========================================================================================
   
@@ -321,10 +412,10 @@ int main(int argc, char** argv)
   {
     planning_scene_monitor::LockedPlanningSceneRO lscene(psm); // lscene is of type PlanningSceneConstPtr
 
-    /* Now, call the pipeline and check whether planning was successful. */
+    // Now, call the pipeline and check whether planning was successful. 
     planning_pipeline->generatePlan(lscene, req, res);
   }
-  /* Check that the planning was successful */
+  // Check that the planning was successful 
   if (res.error_code_.val != res.error_code_.SUCCESS)
   {
     ROS_ERROR_STREAM_NAMED(NODE_NAME, "Could not compute plan successfully");
@@ -339,7 +430,6 @@ int main(int argc, char** argv)
       node_handle.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
   moveit_msgs::DisplayTrajectory display_trajectory;
 
-  /* Visualize the trajectory */
   moveit_msgs::MotionPlanResponse response;
   res.getMessage(response);
 
@@ -372,5 +462,7 @@ int main(int argc, char** argv)
   visual_tools.trigger();
 
   visual_tools.prompt("Press 'next' to finish demo \n");
+
+  */
 }
 
