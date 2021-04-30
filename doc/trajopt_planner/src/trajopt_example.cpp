@@ -27,6 +27,7 @@
 #include <tf2_ros/transform_listener.h>
 
 #include <sensor_msgs/JointState.h>
+#include <visualization_msgs/Marker.h>
 
 
 /* Author: Omid Heidari
@@ -72,10 +73,58 @@ void publish_joint_state(ros::NodeHandle& n, const std::vector<double>& position
     std::cout << "count: " << count << std::endl;
 
     joint_pub.publish(joint_state_msg);
-
     loop_rate.sleep();
     ++count;
   }
+}
+
+void publish_collision_object(ros::NodeHandle& n, const Eigen::Isometry3d& pos)
+{
+  ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("/visualization_marker", 1);
+  ros::Rate loop_rate(1);
+
+  auto cube = visualization_msgs::Marker::CUBE;
+  visualization_msgs::Marker marker;
+
+  marker.header.frame_id = "world"; // "world"; 
+  marker.header.stamp = ros::Time::now();
+  marker.ns = "basic_shapes";
+  marker.id = 0;   //"box1"
+  marker.type = cube;
+  marker.action = visualization_msgs::Marker::ADD;
+
+  marker.pose.position.x = pos.translation().x();   //0.3;       0;
+  marker.pose.position.y = pos.translation().y();   //0.6;       0;
+  marker.pose.position.z = pos.translation().z(); //0.75;    0.5;
+  Eigen::Quaterniond q = (Eigen::Quaterniond)pos.linear();
+  marker.pose.orientation.x = q.x();
+  marker.pose.orientation.y = q.y();
+  marker.pose.orientation.z = q.z();
+  marker.pose.orientation.w = q.w();
+
+  // Set the scale of the marker -- 1x1x1 here means 1m on a side
+  marker.scale.x = 0.2;
+  marker.scale.y = 0.2;
+  marker.scale.z = 0.2;
+
+  // Set the color -- be sure to set alpha to something non-zero!
+  marker.color.r = 0.0f;
+  marker.color.g = 1.0f;
+  marker.color.b = 0.0f;
+  marker.color.a = 1.0;
+
+  // marker.lifetime = ros::Duration();
+
+  int count = 0;
+  while(count < 10)
+  {
+    std::cout << "count: " << count << std::endl;
+
+    marker_pub.publish(marker);
+    loop_rate.sleep();
+    ++count;
+  }
+
 }
 
 int main(int argc, char** argv)
@@ -118,40 +167,38 @@ int main(int argc, char** argv)
   printVector("joint names: ", joint_names);
 
   // ----- change the robot state directly from the planning scne  
-  std::vector<double> joint_values = { 0.1, -0.2, 0, -0.356, 0, 0.5, 0.785 };
-  planning_scene->getCurrentStateNonConst().setJointGroupPositions(joint_model_group, joint_values);
+  std::vector<double> joint_values_initial = { 0.1, -0.2, 0, -0.356, 0, 0.5, 0.785 };
+  planning_scene->getCurrentStateNonConst().setJointGroupPositions(joint_model_group, joint_values_initial);
 
   std::vector<double> copied_joint_values;
   planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
-  printVector("copied joint values: ", copied_joint_values);
+  printVector("copied joint values, initial?: ", copied_joint_values);
 
   // ----- chagne the robot state separately, does this have any effect on planning scene?
-  joint_values.clear();
-  joint_values =  { 0, -0.71, 0, -2.2, 0, 1.49, 0.71 };
-  robot_state->setJointGroupPositions(joint_model_group, joint_values);
+  std::vector<double> joint_values_A =  { 0, -0.71, 0, -2.2, 0, 1.49, 0.71 };
+  robot_state->setJointGroupPositions(joint_model_group, joint_values_A);
   robot_state->update();
 
-   robot_state::RobotState robot_state_initial(*robot_state);
+  robot_state::RobotState robot_state_A(*robot_state);
 
   // ----- no it does not. I have to update the scene through robot state
   planning_scene->setCurrentState(*robot_state);
 
   copied_joint_values.clear();
   planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
-  printVector("copied joint values: ", copied_joint_values);
+  printVector("copied joint values, A?: ", copied_joint_values);
 
   // ----- so what if I create a robot state pointer/alias that points to the planning scene's robot state
   // robot_state::RobotStatePtr robot_state_ps = std::make_shared<moveit::core::RobotState>(planning_scene->getCurrentStateNonConst());
   robot_state::RobotState& robot_state_ps = planning_scene->getCurrentStateNonConst();
 
-  joint_values.clear();
-  joint_values = { -0.1, 1.2, 0, -2, 0, 0, 0 };
-  robot_state_ps.setJointGroupPositions(joint_model_group, joint_values);
+  std::vector<double> joint_values_B = { -0.1, 1.2, 0, -2, 0, 0, 0 };
+  robot_state_ps.setJointGroupPositions(joint_model_group, joint_values_B);
   robot_state_ps.update();
 
   copied_joint_values.clear();
   planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
-  printVector("copied joint values: ", copied_joint_values);
+  printVector("copied joint values, B?: ", copied_joint_values);
 
   // pointer did not work but updating the alias updated the robot state in planning scene
 
@@ -308,56 +355,31 @@ int main(int argc, char** argv)
 
   // add collision object
   // ========================================================================================
-  moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+  visual_tools.prompt("Press 'next' to add collision object to plannin scene \n");
 
-  moveit_msgs::CollisionObject collision_object;
-  collision_object.header.frame_id = "world"; 
-  
-  // The id of the object is used to identify it.
-  collision_object.id = "box1";
+  // add the object to planning scene without using planning_scene_interface
+  Eigen::Isometry3d box_pose_iso{ Eigen::Isometry3d::Identity() };
+  box_pose_iso.translation().x() = 0;
+  box_pose_iso.translation().y() = 0;
+  box_pose_iso.translation().z() = 0.5;
+  shapes::ShapePtr cube_shape = std::make_shared<shapes::Box>(0.2, 0.2, 0.2);
+  planning_scene->getWorldNonConst()->addToObject("box1", cube_shape, box_pose_iso);
 
-  // Define a box to add to the world.
-  shape_msgs::SolidPrimitive primitive;
-  primitive.type = primitive.BOX;
-  primitive.dimensions.resize(3);
-  primitive.dimensions[0] = 0.2;
-  primitive.dimensions[1] = 0.2;
-  primitive.dimensions[2] = 0.2;
+  visual_tools.prompt("Press 'next' to view collision object in rviz \n");
+  publish_collision_object(node_handle, box_pose_iso);
 
-  // Define a pose for the box (specified relative to frame_id)
-  geometry_msgs::Pose box_pose;
-  box_pose.orientation.w = 1.0;
-  box_pose.position.x = 0;   //0.3;       0;
-  box_pose.position.y = 0;   //0.6;       0;
-  box_pose.position.z = 0.5; //0.75;    0.5;
-
-  collision_object.primitives.push_back(primitive);
-  collision_object.primitive_poses.push_back(box_pose);
-  collision_object.operation = collision_object.ADD;
-
-  std::vector<moveit_msgs::CollisionObject> collision_objects;
-  collision_objects.push_back(collision_object);
-
-  visual_tools.prompt("Press 'next' to see the collision object \n");
-
-
-  planning_scene_interface.addCollisionObjects(collision_objects);
-  // psm->updateSceneWithCurrentState(); // this is very important
-  // planning_scene->getCurrentStateNonConst().update();
-  joint_values.clear();
-  joint_values =  { 0.1, -0.2, 0, -0.356, 0, 0.5, 0.785};
-  robot_state_ps.setJointGroupPositions(joint_model_group, joint_values);
+  // set the state back to the initial
+  robot_state_ps.setJointGroupPositions(joint_model_group, joint_values_initial);
   robot_state_ps.update();
   copied_joint_values.clear();
   planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
-  printVector("initial joint values: ", copied_joint_values);
-  planning_scene->getCurrentStateNonConst().update();
+  printVector("copied joint values, initial?: ", copied_joint_values);
   planning_scene->printKnownObjects();
   
   visual_tools.prompt("Press 'next' to see the robot at initial state \n");
-  joint_values.push_back(0.2);
-  joint_values.push_back(0.2);
-  publish_joint_state(node_handle, joint_values);
+  joint_values_initial.push_back(0.2);
+  joint_values_initial.push_back(0.2);
+  publish_joint_state(node_handle, joint_values_initial);
 
   // this visual_tools.prompt is very important too, I dont know why
   visual_tools.prompt("Press 'next' to see the collision result at the start state \n");
@@ -367,9 +389,9 @@ int main(int argc, char** argv)
   collision_detection::CollisionResult collision_res;
   collision_req.group_name = PLANNING_GROUP;
   collision_req.contacts = true;
-  // collision_req.max_contacts = 100;
-  // collision_req.max_contacts_per_pair = 5;
-  // collision_req.verbose = false;
+  collision_req.max_contacts = 100;
+  collision_req.max_contacts_per_pair = 5;
+  collision_req.verbose = false;
   // psm->getPlanningScene()->checkCollision(collision_req, collision_res);
   planning_scene->checkCollision(collision_req, collision_res);
   std::cout << "+++++++++++++++ start state is in collision? " << collision_res.collision << std::endl;
