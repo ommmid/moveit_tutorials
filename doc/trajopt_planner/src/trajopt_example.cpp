@@ -447,6 +447,10 @@ int main(int argc, char** argv)
   ps->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
   printVector("copied joint values, initial?: ", copied_joint_values);
 
+  // for some reason removing and adding the object to the diff() will make checkCollision work!!!!!!!!!!!!!
+  ps->getWorldNonConst()->removeObject("box1");
+  ps->getWorldNonConst()->addToObject("box1", cube_shape, box_pose_iso);
+
   collision_res.clear();
   ps->checkCollision(collision_req, collision_res);
   std::cout << "initial state is in collision? " << collision_res.collision << std::endl;
