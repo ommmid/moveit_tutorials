@@ -116,7 +116,7 @@ void publish_collision_object(ros::NodeHandle& n, const Eigen::Isometry3d& pos)
   // marker.lifetime = ros::Duration();
 
   int count = 0;
-  while(count < 10)
+  while(count < 5)
   {
     std::cout << "count: " << count << std::endl;
 
@@ -125,6 +125,25 @@ void publish_collision_object(ros::NodeHandle& n, const Eigen::Isometry3d& pos)
     ++count;
   }
 
+}
+
+void publish_planning_scene(ros::NodeHandle& n, const planning_scene::PlanningScenePtr& ps)
+{
+  ros::Publisher ps_pub = n.advertise<moveit_msgs::PlanningScene>("/planning_scene", 1);
+  ros::Rate loop_rate(1);
+
+  moveit_msgs::PlanningScene scene;
+  ps->getPlanningSceneMsg(scene);
+
+  int count = 0;
+  while(count < 5)
+  {
+    std::cout << "count: " << count << std::endl;
+
+    ps_pub.publish(scene);
+    loop_rate.sleep();
+    ++count;
+  }
 }
 
 int main(int argc, char** argv)
@@ -374,50 +393,71 @@ int main(int argc, char** argv)
   copied_joint_values.clear();
   planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
   printVector("copied joint values, initial?: ", copied_joint_values);
-  planning_scene->printKnownObjects();
+  robot_state::RobotState robot_state_initial(robot_state_ps);
   
   visual_tools.prompt("Press 'next' to see the robot at initial state \n");
   joint_values_initial.push_back(0.2);
   joint_values_initial.push_back(0.2);
   publish_joint_state(node_handle, joint_values_initial);
 
+  planning_scene->setName("omid");
   // this visual_tools.prompt is very important too, I dont know why
-  visual_tools.prompt("Press 'next' to see the collision result at the start state \n");
-
+  visual_tools.prompt("Press 'next' to see planning scene published \n");
+  publish_planning_scene(node_handle, planning_scene); 
+  visual_tools.prompt("Press 'next' to see the collision result at the initial state \n");
   // Check collision
   collision_detection::CollisionRequest collision_req;
   collision_detection::CollisionResult collision_res;
   collision_req.group_name = PLANNING_GROUP;
   collision_req.contacts = true;
-  // collision_req.max_contacts = 100;
-  // collision_req.max_contacts_per_pair = 5;
-  // collision_req.verbose = false;
-  // psm->getPlanningScene()->checkCollision(collision_req, collision_res);
+  collision_req.max_contacts = 100;
+  collision_req.max_contacts_per_pair = 5;
+  collision_req.verbose = false;
+
+  std::cout << "=====>>> planning scene info: " << std::endl;
+  planning_scene->printKnownObjects();
+  std::cout << "robot model: " << planning_scene->getRobotModel()->getName() << std::endl;
+  std::cout << "collision checker name: " << planning_scene->getActiveCollisionDetectorName() << std::endl;
+  copied_joint_values.clear();
+  planning_scene->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
+  printVector("copied joint values, initial?: ", copied_joint_values);
+
+  collision_res.clear();
   planning_scene->checkCollision(collision_req, collision_res);
-  std::cout << "+++++++++++++++ start state is in collision? " << collision_res.collision << std::endl;
-  std::cout << "+++++++++++++++ number of contacts " << collision_res.contact_count << std::endl;
-   for (auto it = collision_res.contacts.begin(); it != collision_res.contacts.end(); ++it)
-  {
+  std::cout << "initial state is in collision? " << collision_res.collision << std::endl;
+  std::cout << "number of contacts " << collision_res.contact_count << std::endl;
+  for (auto it = collision_res.contacts.begin(); it != collision_res.contacts.end(); ++it)
       ROS_INFO("Contact between: %s and %s", it->first.first.c_str(), it->first.second.c_str());
-  }
 
-  // visual_tools.prompt("Press 'next' to see the collision result at a known colliding state \n");
+  // ------------------------------ diff()
+  planning_scene::PlanningScenePtr ps = planning_scene->diff();
+  // ps is a another shared_pointer created from planning_scene shared pointer
+  // robot state is at initial
+  ps->setName("omidiff");
 
-  // //--- check collision at a known colliding state
-  // std::vector<double> known_colliding_joint_values = { 0.577778, 0.477778, 0.722222, -0.883333, 1.33333, 1.53333, -0.0861111 };
-  // robot_state->setJointGroupPositions(joint_model_group, known_colliding_joint_values);
-  // // robot_state->setToDefaultValues();
-  // robot_state->update();
-  // robot_state::RobotState robot_state_known_colliding(*robot_state);
-  // collision_res.clear();
+  visual_tools.prompt("Press 'next' to see planning scene diff() published \n");
+  publish_planning_scene(node_handle, ps); // can we publish collision too???????????????
+  visual_tools.prompt("Press 'next' to see the collision result at the initial state \n");
 
-  // planning_scene->checkCollision(collision_req, collision_res, robot_state_known_colliding);
-  // std::cout << "+++++++++++++++ start state is in collision? " << collision_res.collision << std::endl;
-  // std::cout << "+++++++++++++++ number of contacts " << collision_res.contact_count << std::endl;
-  //  for (auto it = collision_res.contacts.begin(); it != collision_res.contacts.end(); ++it)
-  // {
-  //     ROS_INFO("Contact between: %s and %s", it->first.first.c_str(), it->first.second.c_str());
-  // }
+  std::cout << "=====>>>  diff() info: " << std::endl;
+  ps->printKnownObjects();
+  std::cout << "robot model: " << ps->getRobotModel()->getName() << std::endl;
+  std::cout << "collision checker name: " << ps->getActiveCollisionDetectorName() << std::endl;
+  copied_joint_values.clear();
+  ps->getCurrentStateNonConst().copyJointGroupPositions(joint_model_group, copied_joint_values);
+  printVector("copied joint values, initial?: ", copied_joint_values);
+
+  collision_res.clear();
+  ps->checkCollision(collision_req, collision_res);
+  std::cout << "initial state is in collision? " << collision_res.collision << std::endl;
+  std::cout << "number of contacts " << collision_res.contact_count << std::endl;
+  for (auto it = collision_res.contacts.begin(); it != collision_res.contacts.end(); ++it)
+      ROS_INFO("Contact between: %s and %s", it->first.first.c_str(), it->first.second.c_str());
+
+
+  std::cout << "does the name of the planning scene that  pointer planning_scene_ps points to also changes to 'omidiff' ?" << std::endl;
+  std::cout << planning_scene->getName() << std::endl;
+  // apparently diff() is pointing to a new object different from the original planning_scene object
 
   visual_tools.prompt("Press 'next' do the planning \n");
 /*
